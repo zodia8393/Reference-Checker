@@ -11,9 +11,9 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from docx import Document
 
 class ReferenceCheckerWorker(QThread):
-    search_complete = pyqtSignal(list)
-    citation_text_complete = pyqtSignal(list)
-    citation_context_complete = pyqtSignal(list)
+    search_complete = pyqtSignal(list)  # 검색 완료 신호
+    citation_text_complete = pyqtSignal(list)  # 인용문 텍스트 완료 신호
+    citation_context_complete = pyqtSignal(list)  # 인용문 컨텍스트 완료 신호
     
     def __init__(self, engine, file_path):
         super().__init__()
@@ -24,24 +24,24 @@ class ReferenceCheckerWorker(QThread):
     def run(self):
         paper_content = self.extract_paper_content(self.file_path)
         
-        # Language detection
+        # 언어 감지
         detected_language = self.detect_language(paper_content)
         
         if detected_language == 'en':
-            # If the content is already in English, search directly
+            # 영어인 경우, 직접 검색
             reference_papers = self.search_reference_papers(paper_content, num_pages=3)
         else:
-            # If the content is in a different language, translate to English and search
+            # 다른 언어인 경우, 영어로 번역 후 검색
             translated_content = self.translate_content(paper_content)
             reference_papers = self.search_reference_papers(translated_content, num_pages=3)
         
-        self.search_complete.emit(reference_papers)
+        self.search_complete.emit(reference_papers)  # 검색 완료 신호 전달
         
         citation_texts = self.extract_citation_text(reference_papers)
-        self.citation_text_complete.emit(citation_texts)
+        self.citation_text_complete.emit(citation_texts)  # 인용문 텍스트 완료 신호 전달
         
         citation_contexts = self.extract_citation_contexts(paper_content, citation_texts)
-        self.citation_context_complete.emit(citation_contexts)
+        self.citation_context_complete.emit(citation_contexts)  # 인용문 컨텍스트 완료 신호 전달
     
     @staticmethod
     def extract_paper_content(file_path):
@@ -81,7 +81,7 @@ class ReferenceCheckerWorker(QThread):
             'Google Scholar': 'https://scholar.google.com/scholar?q={}',
             'PubMed': 'https://pubmed.ncbi.nlm.nih.gov/?term={}',
             'IEEE Xplore': 'https://ieeexplore.ieee.org/search/searchresult.jsp?queryText={}',
-            # Add other search engines
+            # 다른 검색 엔진 추가
         }
         
         engine_url = search_engine[self.engine]
@@ -101,7 +101,7 @@ class ReferenceCheckerWorker(QThread):
                     paper_info = self.extract_paper_info(search_result)
                     papers.append(paper_info)
         
-        # Sort the papers based on citations in descending order
+        # 인용 수를 기준으로 논문 정렬
         papers.sort(key=lambda paper: int(paper.split(" - ")[-1].split(" ")[0]), reverse=True)
         
         return papers
@@ -117,12 +117,11 @@ class ReferenceCheckerWorker(QThread):
                 'Google Scholar': 'https://scholar.google.com/scholar?q={}',
                 'PubMed': 'https://pubmed.ncbi.nlm.nih.gov/?term={}',
                 'IEEE Xplore': 'https://ieeexplore.ieee.org/search/searchresult.jsp?queryText={}',
-                # Add other search engines
+                # 다른 검색 엔진 추가
             }
             
             engine_url = search_engine[self.engine]
             
-            # Check if the content is in English or needs translation
             if self.detect_language(search_query) == 'en':
                 search_url = engine_url.format(search_query)
             else:
@@ -180,41 +179,43 @@ class ReferenceCheckerGUI(QMainWindow):
         self.translator = Translator()
         
         self.setWindowTitle('Reference Checker')
+        self.setGeometry(200, 200, 800, 600)  # 창 크기 조정
+        
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
-        layout = QGridLayout(self.central_widget)
+        self.layout = QGridLayout(self.central_widget)
         
         self.text_edit = QTextEdit()
-        layout.addWidget(self.text_edit, 0, 0, 1, 2)
+        self.layout.addWidget(self.text_edit, 0, 0, 1, 2)
         
-        browse_button = QPushButton('Browse')
+        browse_button = QPushButton('파일 선택')
         browse_button.clicked.connect(self.process_file)
-        layout.addWidget(browse_button, 1, 0)
+        self.layout.addWidget(browse_button, 1, 0)
         
-        search_button = QPushButton('Search')
+        search_button = QPushButton('검색')
         search_button.clicked.connect(self.start_search)
-        layout.addWidget(search_button, 1, 1)
+        self.layout.addWidget(search_button, 1, 1)
         
-        engine_label = QLabel('Select a search engine:')
-        layout.addWidget(engine_label, 2, 0)
+        engine_label = QLabel('검색 엔진 선택:')
+        self.layout.addWidget(engine_label, 2, 0)
         
         self.engine_combobox = QComboBox()
         self.engine_combobox.addItem('Google Scholar')
         self.engine_combobox.addItem('PubMed')
         self.engine_combobox.addItem('IEEE Xplore')
-        # Add other search engines
+        # 다른 검색 엔진 추가
         self.engine_combobox.currentTextChanged.connect(self.engine_selected)
-        layout.addWidget(self.engine_combobox, 2, 1)
+        self.layout.addWidget(self.engine_combobox, 2, 1)
         
         self.tree_widget = QTreeWidget()
-        self.tree_widget.setHeaderLabels(['Title', 'Authors', 'Citations', 'Citation Context'])
-        layout.addWidget(self.tree_widget, 3, 0, 1, 2)
+        self.tree_widget.setHeaderLabels(['제목', '저자', '인용 수', '인용문 텍스트', '인용문 컨텍스트'])
+        self.layout.addWidget(self.tree_widget, 3, 0, 1, 2)
         
         self.show()
     
     def process_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Select a file', '', 'Text Files (*.txt);;PDF Files (*.pdf);;Word Documents (*.docx)')
+        file_path, _ = QFileDialog.getOpenFileName(self, '파일 선택', '', '텍스트 파일 (*.txt);;PDF 파일 (*.pdf);;Word 문서 (*.docx)')
         if file_path:
             try:
                 self.text_edit.clear()
@@ -223,23 +224,23 @@ class ReferenceCheckerGUI(QMainWindow):
                         paper_content = file.read()
                         self.text_edit.setPlainText(paper_content)
                 elif file_path.endswith('.pdf'):
-                    self.text_edit.setPlainText('Loading PDF...')
+                    self.text_edit.setPlainText('PDF 로딩 중...')
                     self.worker = ReferenceCheckerWorker(self.selected_engine, file_path)
                     self.worker.search_complete.connect(self.show_reference_papers)
                     self.worker.citation_text_complete.connect(self.show_citation_texts)
                     self.worker.citation_context_complete.connect(self.show_citation_contexts)
                     self.worker.start()
                 elif file_path.endswith('.docx'):
-                    self.text_edit.setPlainText('Loading Word document...')
+                    self.text_edit.setPlainText('Word 문서 로딩 중...')
                     self.worker = ReferenceCheckerWorker(self.selected_engine, file_path)
                     self.worker.search_complete.connect(self.show_reference_papers)
                     self.worker.citation_text_complete.connect(self.show_citation_texts)
                     self.worker.citation_context_complete.connect(self.show_citation_contexts)
                     self.worker.start()
                 else:
-                    self.text_edit.setPlainText('Unsupported file format.')
+                    self.text_edit.setPlainText('지원되지 않는 파일 형식입니다.')
             except Exception as e:
-                QMessageBox.critical(self, 'Error', str(e))
+                QMessageBox.critical(self, '오류', str(e))
     
     def start_search(self):
         paper_content = self.text_edit.toPlainText()
@@ -251,7 +252,7 @@ class ReferenceCheckerGUI(QMainWindow):
             self.worker.citation_context_complete.connect(self.show_citation_contexts)
             self.worker.start()
         else:
-            QMessageBox.warning(self, 'Warning', 'No paper content to search.')
+            QMessageBox.warning(self, '경고', '검색할 논문 내용이 없습니다.')
     
     def show_reference_papers(self, reference_papers):
         if reference_papers:
@@ -260,7 +261,7 @@ class ReferenceCheckerGUI(QMainWindow):
                 item = QTreeWidgetItem([title, authors, citations])
                 self.tree_widget.addTopLevelItem(item)
         else:
-            QMessageBox.information(self, 'Reference Papers', 'No reference papers found.')
+            QMessageBox.information(self, '참조 논문', '참조 논문이 없습니다.')
     
     def show_citation_texts(self, citation_texts):
         for i in range(self.tree_widget.topLevelItemCount()):
